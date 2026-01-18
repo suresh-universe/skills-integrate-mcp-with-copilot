@@ -3,6 +3,70 @@ document.addEventListener("DOMContentLoaded", () => {
   const activitySelect = document.getElementById("activity");
   const signupForm = document.getElementById("signup-form");
   const messageDiv = document.getElementById("message");
+  const userIcon = document.getElementById("user-icon");
+  const loginModal = document.getElementById("login-modal");
+  const loginForm = document.getElementById("login-form");
+  const loginMessage = document.getElementById("login-message");
+  const closeBtn = document.querySelector(".close");
+  const signupContainer = document.getElementById("signup-container");
+
+  let isAdmin = false;
+  let adminToken = null;
+
+  // Event listeners
+  userIcon.addEventListener("click", () => {
+    if (isAdmin) {
+      // Logout
+      isAdmin = false;
+      adminToken = null;
+      userIcon.textContent = "👤";
+      signupContainer.classList.add("hidden");
+      fetchActivities();
+    } else {
+      loginModal.classList.remove("hidden");
+    }
+  });
+
+  closeBtn.addEventListener("click", () => {
+    loginModal.classList.add("hidden");
+  });
+
+  loginForm.addEventListener("submit", handleLogin);
+
+  // Handle login
+  async function handleLogin(event) {
+    event.preventDefault();
+    const username = document.getElementById("username").value;
+    const password = document.getElementById("password").value;
+
+    try {
+      const response = await fetch("/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({ username, password }),
+      });
+
+      const result = await response.json();
+
+      if (response.ok) {
+        isAdmin = true;
+        adminToken = result.token;
+        userIcon.textContent = "👨‍🏫";
+        signupContainer.classList.remove("hidden");
+        loginModal.classList.add("hidden");
+        fetchActivities();
+        loginMessage.classList.add("hidden");
+      } else {
+        loginMessage.textContent = result.detail || "Login failed";
+        loginMessage.className = "error";
+        loginMessage.classList.remove("hidden");
+      }
+    } catch (error) {
+      loginMessage.textContent = "An error occurred";
+      loginMessage.className = "error";
+      loginMessage.classList.remove("hidden");
+    }
+  }
 
   // Function to fetch activities from API
   async function fetchActivities() {
@@ -30,7 +94,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 ${details.participants
                   .map(
                     (email) =>
-                      `<li><span class="participant-email">${email}</span><button class="delete-btn" data-activity="${name}" data-email="${email}">❌</button></li>`
+                      `<li><span class="participant-email">${email}</span>${isAdmin ? `<button class="delete-btn" data-activity="${name}" data-email="${email}">❌</button>` : ''}</li>`
                   )
                   .join("")}
               </ul>
@@ -77,7 +141,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const response = await fetch(
         `/activities/${encodeURIComponent(
           activity
-        )}/unregister?email=${encodeURIComponent(email)}`,
+        )}/unregister?email=${encodeURIComponent(email)}&token=${adminToken}`,
         {
           method: "DELETE",
         }
@@ -121,7 +185,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const response = await fetch(
         `/activities/${encodeURIComponent(
           activity
-        )}/signup?email=${encodeURIComponent(email)}`,
+        )}/signup?email=${encodeURIComponent(email)}&token=${adminToken}`,
         {
           method: "POST",
         }
